@@ -16,14 +16,13 @@ const server = express();
 server.use(cors());
 server.use(express.json());
 
-server.use(categoriesRoute);
+/* server.use(categoriesRoute); */
 
-/* server.get('/categories', async(req, res) =>{
+ server.get('/categories', async(req, res) =>{
     const categorias = await connection.query('SELECT * FROM categories;');
     console.log(categorias);
     res.send(categorias.rows);
-}); */
-
+}); 
 server.post('/categories', async (req, res) => {
     const { name } = req.body;
      await connection.query ("INSERT INTO categories (name) values ($1);", [name]);
@@ -37,7 +36,6 @@ server.get('/games', async (req, res) => {
 });
 
 server.post('/games', async (req, res) =>{
-    
     const {
         name,
         image,
@@ -49,6 +47,19 @@ server.post('/games', async (req, res) =>{
     INSERT INTO games (name, image, "stockTotal", "categoryId", "pricePerDay") VALUES ($1, $2, $3, $4, $5);`, [name, image, stockTotal, categoryId, pricePerDay]);
     
     res.sendStatus(201)
+})
+
+server.get('/customers', async (req, res) =>{
+    const listaDeUsuarios = await connection.query ('SELECT * FROM customers;');
+    res.send(listaDeUsuarios.rows);
+})
+
+server.post('/customers', async (req, res) =>{
+    const { name, phone, cpf, birthday } = req.body;
+
+    await connection.query (`INSERT INTO customers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4)`, [name, phone, cpf, birthday]);
+    
+    res.sendStatus(201);
 })
 
 
