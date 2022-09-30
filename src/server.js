@@ -38,7 +38,6 @@ server.get('/games', async (req, res) => {
 
 server.post('/games', async (req, res) =>{
     
-
     const {
         name,
         image,
@@ -47,8 +46,7 @@ server.post('/games', async (req, res) =>{
         pricePerDay
       } = req.body;
     await connection.query (`
-    INSERT INTO games (name, image, "stockTotal", "categoryId", "pricePerDay") VALUES ('Banco Imobiliário', 'http://', 3, 1, 1500);
-  `);
+    INSERT INTO games (name, image, "stockTotal", "categoryId", "pricePerDay") VALUES ($1, $2, $3, $4, $5);`, [name, image, stockTotal, categoryId, pricePerDay]);
     
     res.sendStatus(201)
 })
