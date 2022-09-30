@@ -31,10 +31,22 @@ const gamesSchema = joi.object({
     pricePerDay: joi.number().greater(0)
 })
 
+const customersSchema = joi.object({
+    name: joi.string().required(),
+    phone: joi.string().required().min(10).max(11),
+    cpf: joi.string().required().min(10).max(11),
+    birthday: joi.date().required()
+})
+
+
  server.get('/categories', async(req, res) =>{
-    const categorias = await connection.query('SELECT * FROM categories;');
-    console.log(categorias);
-    res.send(categorias.rows);
+
+    try {
+        const categorias = await connection.query('SELECT * FROM categories;');
+        res.send(categorias.rows);
+    } catch (error) {
+        res.send(error)
+    }
 }); 
 
 server.post('/categories', async (req, res) => {
@@ -58,15 +70,17 @@ server.post('/categories', async (req, res) => {
 
 server.get('/games', async (req, res) => {
     const queryName =  req.query.name;
-    if (queryName){
-        const listaGames = await connection.query(`SELECT * FROM games WHERE name ILIKE '${queryName}%';`);
-    console.log(listaGames);
-    return res.send(listaGames.rows);
+    try {
+        if (queryName){
+            const listaGames = await connection.query(`SELECT * FROM games WHERE name ILIKE '${queryName}%';`);
+        console.log(listaGames);
+        return res.send(listaGames.rows);
+        }
+        const listaGames = await connection.query(`SELECT * FROM games;`);
+        res.send(listaGames.rows);
+    } catch (error) {
+        res.send(error)
     }
-    
-    const listaGames = await connection.query(`SELECT * FROM games;`);
-    console.log(listaGames);
-    res.send(listaGames.rows);
 });
 
 server.post('/games', async (req, res) =>{
@@ -104,17 +118,73 @@ server.post('/games', async (req, res) =>{
 })
 
 server.get('/customers', async (req, res) =>{
-    const listaDeUsuarios = await connection.query ('SELECT * FROM customers;');
-    res.send(listaDeUsuarios.rows);
+    const queryCpf =  req.query.cpf;
+
+    try {
+        if (queryCpf){
+            const listaDeUsuarios = await connection.query(`SELECT * FROM customers WHERE cpf ILIKE '${queryCpf}%';`);
+    
+        return res.send(listaDeUsuarios.rows);
+        }
+        const listaDeUsuarios = await connection.query ('SELECT * FROM customers;');
+        res.send(listaDeUsuarios.rows);
+
+    } catch (error) {
+        res.send(error)
+    }
 })
+
+server.get('/customers/:id', async (req, res) =>{
+    const id = req.params.id;
+    try {
+        const usuario = await connection.query (`SELECT * FROM customers WHERE id = ${id}`);
+    if(!usuario) return res.sendStatus(404)
+    res.send(usuario.rows[0]);
+    } catch (error) {
+        res.send(error)
+    } 
+});
 
 server.post('/customers', async (req, res) =>{
+    const validation = customersSchema.validate(req.body);
+    console.log(validation.error);
+    if(validation.error) return res.sendStatus(400);
+
     const { name, phone, cpf, birthday } = req.body;
 
+    try {
+        const listaDeUsuarios = await connection.query ('SELECT * FROM customers;');
+    const temcpf = listaDeUsuarios.rows.find (value => value.cpf === cpf);
+    if(temcpf) return res.sendStatus(409);
+
     await connection.query (`INSERT INTO customers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4)`, [name, phone, cpf, birthday]);
-    
+    } catch (error) {
+        res.send(error)
+    }
     res.sendStatus(201);
 })
+
+server.put('/customers/:id', async (req, res) =>{
+    const id = req.params.id;
+
+    const validation = customersSchema.validate(req.body);
+    console.log(validation.error);
+    if(validation.error) return res.sendStatus(400);
+
+    const { name, phone, cpf, birthday } = req.body;
+
+    try {
+        const listaDeUsuarios = await connection.query ('SELECT * FROM customers;');
+    const temcpf = listaDeUsuarios.rows.find (value => value.cpf === cpf);
+    if(temcpf) return res.sendStatus(409);
+    
+    await connection.query (`UPDATE customers SET (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4) WHERE id = ${id}`, [name, phone, cpf, birthday]);
+    } catch (error) {
+        res.send(error)
+    }
+    res.sendStatus(201);
+})
+
 
 
 server.get('/status', (req, res) =>{
