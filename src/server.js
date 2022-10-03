@@ -191,6 +191,24 @@ server.put('/customers/:id', async (req, res) =>{
     res.sendStatus(201);
 })
 
+/* , lista.rows[i].customerId, lista.rows[i].gameId, lista.rows[i].rentDate, lista.rows[i].daysRented, lista.rows[i].returnDate, lista.rows[i].originalPrice, lista.rows[i].delayFee, customer[i], game[i] */
+
+server.get('/rentals', async (req, res) => {
+    const querys = req.query;
+    const {rows} = await connection.query ('SELECT rentals.*, customers.id as "idCustomer", customers.name as "nameCustomer",games.id as "idGame", games.name as"nameGame", categories.id as "idCategories", categories.name as "nameCategories" FROM rentals JOIN customers ON rentals."customerId"=customers.id JOIN games ON rentals."gameId"=games.id JOIN categories ON games."categoryId"=categories.id;');
+
+    if(querys.customerId) {
+        let listaCustomer = rows.filter(value => value.customerId === Number(querys.customerId))
+        
+        return res.send(listaCustomer);
+    }else if(querys.gameId){
+       
+        const listaGames = rows.filter(value => value.gameId === Number(querys.gameId)); 
+        return res.send(listaGames);
+    } else{
+    res.send(rows);
+    }
+})
 
 server.post ('/rentals', async (req, res) => {
     
@@ -232,7 +250,7 @@ server.post('/rentals/:id/return', async (req, res) => {
                 const multa = valorDaDiaria*diasDeAtraso;
                 await connection.query(`UPDATE rentals SET "returnDate" = '${dayjs().format('YYYY-MM-DD')}', "delayFee" = '${multa}' WHERE id = ${idRentals};`)
             }
-            await connection.query (`UPDATE rentals SET "returnDate" = '${dayjs().format('YYYY-MM-DD')}', "delayFee" = '0' WHERE id = ${idRentals};`)
+            await connection.query (`UPDATE rentals SET "returnDate" = '${dayjs().format('YYYY-MM-DD')}' WHERE id = ${idRentals};`)
             const newRental = await connection.query(`SELECT * FROM rentals WHERE id = ${idRentals}`);
             res.send(newRental.rows[0])
         }
@@ -242,6 +260,25 @@ server.post('/rentals/:id/return', async (req, res) => {
     }
 });
 
+server.delete ('/rentals/:id', async (req, res) =>{
+    const idRentals = req.params.id;
+    try {
+        const rentals = await connection.query(`SELECT * FROM rentals WHERE id = ${idRentals}`);
+        
+        if(rentals.rows.length === 0) return res.sendStatus(404);
+        else if (rentals.rows[0].returnDate === null) return res.sendStatus(400);
+        else{
+            await connection.query(`DELETE FROM rentals WHERE id = ${idRentals};`);
+
+            console.log(rentals.rows);
+        } 
+    } catch (error) {
+
+        res.status(500).send(error)
+    }
+    
+    res.sendStatus(200);
+})
 
 
 server.get('/status', (req, res) =>{
