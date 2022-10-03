@@ -6,6 +6,8 @@ const { Pool } = pg;
 import dotenv from 'dotenv';
 dotenv.config();
 
+import dayjs from 'dayjs';
+
 import categoriesRoute from './routes/categories.Route.js'
 
 
@@ -36,6 +38,10 @@ const customersSchema = joi.object({
     phone: joi.string().required().min(10).max(11),
     cpf: joi.string().required().min(10).max(11),
     birthday: joi.date().required()
+})
+
+const days_rented = joi.object({
+    daysRented: joi.number().greater(0)
 })
 
 
@@ -186,9 +192,61 @@ server.put('/customers/:id', async (req, res) =>{
 })
 
 
+server.post ('/rentals', async (req, res) => {
+    
+    if (req.body.daysRented < 1) return res.sendStatus(400);
+    const {customerId, gameId, daysRented} = req.body;
+    try {
+        const listaDeUsuarios = await connection.query ('SELECT * FROM customers;');
+        const temIdCliente = listaDeUsuarios.rows.find (value => value.id === customerId);
+        if(!temIdCliente) return res.sendStatus(400);
+        const listaDeGames = await connection.query ('SELECT * FROM games;');
+        const temIdGame = listaDeGames.rows.find (value => value.id === gameId);
+        if(!temIdGame) return res.sendStatus(400);
+
+        const originalPrice = daysRented*temIdGame.pricePerDay;
+        
+            const rentals = await connection.query (`INSERT INTO rentals ("customerId", "gameId", "rentDate", "daysRented", "returnDate", "originalPrice", "delayFee") VALUES ($1, $2, $3, $4, $5, $6, $7)`, [customerId, gameId, dayjs().format('YYYY-MM-DD'), daysRented, null, originalPrice, null]);
+        console.log(rentals);
+        res.sendStatus(201);
+    } catch (error) {
+        res.status(500).send(error)
+    }
+});
+
+server.post('/rentals/:id/return', async (req, res) => {
+    const idRentals = req.params.id;
+
+    try {
+        const rentals = await connection.query(`SELECT * FROM rentals WHERE id = ${idRentals};`);
+        if(rentals.rows.length === 0) return res.sendStatus(404);
+        else if(rentals.rows[0].returnDate !== null) {
+            return res.sendStatus(400);
+        }
+        else{
+            const valorDaDiaria = (rentals.rows[0].originalPrice / rentals.rows[0].daysRented) 
+            const date1 = dayjs(rentals.rows[0].rentDate)
+            const dias = date1.diff(dayjs().format('YYYY-MM-DD'), 'day')
+            const diasDeAtraso = (rentals.rows[0].daysRented + dias)* -1;
+            if(diasDeAtraso > 0){
+                const multa = valorDaDiaria*diasDeAtraso;
+                await connection.query(`UPDATE rentals SET "returnDate" = '${dayjs().format('YYYY-MM-DD')}', "delayFee" = '${multa}' WHERE id = ${idRentals};`)
+            }
+            await connection.query (`UPDATE rentals SET "returnDate" = '${dayjs().format('YYYY-MM-DD')}', "delayFee" = '0' WHERE id = ${idRentals};`)
+            const newRental = await connection.query(`SELECT * FROM rentals WHERE id = ${idRentals}`);
+            res.send(newRental.rows[0])
+        }
+    } catch (error) {
+        console.error(error)
+        res.status(500).send(error)
+    }
+});
+
+
 
 server.get('/status', (req, res) =>{
-    res.send('ok');
+
+    res.send(dayjs().format('YYYY-MM-DD'));
 })
 const PORT = process.env.PORT || 4000
 server.listen(PORT, () => console.log(`Listen on port ${PORT}`));
